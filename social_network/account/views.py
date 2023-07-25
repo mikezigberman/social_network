@@ -10,8 +10,6 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Contact
-from actions.utils import create_action
-from actions.models import Action
 
 def user_login(request):
     if request.method == 'POST':
@@ -90,7 +88,6 @@ def user_follow(request):
                 Contact.objects.get_or_create(
                     user_from=request.user,
                     user_to=user)
-                create_action(request.user, 'is following', user)
             else:
                 Contact.objects.filter(user_from=request.user,
                                        user_to=user).delete()
