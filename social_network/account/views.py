@@ -10,6 +10,8 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from .models import Contact
+from actions.utils import create_action
+from actions.models import Action
 
 def user_login(request):
     if request.method == 'POST':
@@ -33,8 +35,15 @@ def user_login(request):
 
 @login_required
 def dashboard(request):
+    acttions = Action.objects.exclude(user=request.user)
+    following_ids = request.user.following.values_list('id', flat=True)
+    if following_ids:
+        acttions = acttions.filter(user_id__in=following_ids)
+    acttions = acttions.select_related('user', 'user__profile')[:10]\
+                       .prefetch_related('target')[:10]
     return render(request, 'account/dashboard.html',
-                  {'section': 'dashboard'})
+                  {'section': 'dashboard',
+                   'actions': actions})
 
 def register(request):
     if request.method == 'POST':
@@ -44,6 +53,7 @@ def register(request):
             new_user.set_password(user_form.cleaned_data['password'])
             new_user.save()
             Profile.objects.create(user=new_user)
+            create_action(new_user, 'has created an account')
             return render(request, 'account/register_done.html', {'new_user': new_user})
     else:
         user_form = UserRegistrationForm()
@@ -88,6 +98,7 @@ def user_follow(request):
                 Contact.objects.get_or_create(
                     user_from=request.user,
                     user_to=user)
+                create_action(request.user, 'is following', user)
             else:
                 Contact.objects.filter(user_from=request.user,
                                        user_to=user).delete()
